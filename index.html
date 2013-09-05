@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="aasm : Ruby state machines" />
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>aasm</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/aasm">View on GitHub</a>
+
+          <h1 id="project_title">aasm</h1>
+          <h2 id="project_tagline">Ruby state machines</h2>
+
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a name="aasm---ruby-state-machines---" class="anchor" href="#aasm---ruby-state-machines---"><span class="octicon octicon-link"></span></a>AASM - Ruby state machines <a href="http://travis-ci.org/aasm/aasm"><img src="https://secure.travis-ci.org/aasm/aasm.png" alt="Build Status"></a> <a href="https://codeclimate.com/github/aasm/aasm"><img src="https://codeclimate.com/github/aasm/aasm.png" alt="Code Climate"></a> <a href="https://coveralls.io/r/aasm/aasm"><img src="https://coveralls.io/repos/aasm/aasm/badge.png?branch=master" alt="Coverage Status"></a>
+</h1>
+
+<p>This package contains AASM, a library for adding finite state machines to Ruby classes.</p>
+
+<p>AASM started as the <em>acts_as_state_machine</em> plugin but has evolved into a more generic library
+that no longer targets only ActiveRecord models. It currently provides adapters for
+<a href="http://api.rubyonrails.org/classes/ActiveRecord/Base.html">ActiveRecord</a> and
+<a href="http://mongoid.org/">Mongoid</a>, but it can be used for any Ruby class, no matter what
+parent class it has (if any).</p>
+
+<h2>
+<a name="usage" class="anchor" href="#usage"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<p>Adding a state machine is as simple as including the AASM module and start defining
+<strong>states</strong> and <strong>events</strong> together with their <strong>transitions</strong>:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+    <span class="n">state</span> <span class="ss">:cleaning</span>
+
+    <span class="n">event</span> <span class="ss">:run</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:running</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:clean</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:cleaning</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:sleep</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="o">[</span><span class="ss">:running</span><span class="p">,</span> <span class="ss">:cleaning</span><span class="o">]</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+<p>This provides you with a couple of public methods for instances of the class <code>Job</code>:</p>
+
+<div class="highlight"><pre><span class="n">job</span> <span class="o">=</span> <span class="no">Job</span><span class="o">.</span><span class="n">new</span>
+<span class="n">job</span><span class="o">.</span><span class="n">sleeping?</span> <span class="c1"># =&gt; true</span>
+<span class="n">job</span><span class="o">.</span><span class="n">may_run?</span>  <span class="c1"># =&gt; true</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>
+<span class="n">job</span><span class="o">.</span><span class="n">running?</span>  <span class="c1"># =&gt; true</span>
+<span class="n">job</span><span class="o">.</span><span class="n">sleeping?</span> <span class="c1"># =&gt; false</span>
+<span class="n">job</span><span class="o">.</span><span class="n">may_run?</span>  <span class="c1"># =&gt; false</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>       <span class="c1"># =&gt; raises AASM::InvalidTransition</span>
+</pre></div>
+
+<p>If you don't like exceptions and prefer a simple <code>true</code> or <code>false</code> as response, tell
+AASM not to be <em>whiny</em>:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span>
+  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="n">aasm</span> <span class="ss">:whiny_transitions</span> <span class="o">=&gt;</span> <span class="kp">false</span> <span class="k">do</span>
+    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+
+<span class="n">job</span><span class="o">.</span><span class="n">running?</span>  <span class="c1"># =&gt; true</span>
+<span class="n">job</span><span class="o">.</span><span class="n">may_run?</span>  <span class="c1"># =&gt; false</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>       <span class="c1"># =&gt; false</span>
+</pre></div>
+
+<h3>
+<a name="callbacks" class="anchor" href="#callbacks"><span class="octicon octicon-link"></span></a>Callbacks</h3>
+
+<p>You can define a number of callbacks for your transitions. These methods will be
+called, when certain criteria are met, like entering a particular state:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">:before_enter</span> <span class="o">=&gt;</span> <span class="ss">:do_something</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+
+    <span class="n">event</span> <span class="ss">:run</span><span class="p">,</span> <span class="ss">:after</span> <span class="o">=&gt;</span> <span class="no">Proc</span><span class="o">.</span><span class="n">new</span> <span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="o">|</span> <span class="n">notify_somebody</span><span class="p">(</span><span class="n">user</span><span class="p">)</span> <span class="p">}</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:on_transition</span> <span class="o">=&gt;</span> <span class="no">Proc</span><span class="o">.</span><span class="n">new</span> <span class="p">{</span><span class="o">|</span><span class="n">obj</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="o">|</span> <span class="n">obj</span><span class="o">.</span><span class="n">set_process</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">)</span> <span class="p">}</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:sleep</span> <span class="k">do</span>
+      <span class="n">after</span> <span class="k">do</span>
+        <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+      <span class="k">end</span>
+      <span class="n">error</span> <span class="k">do</span> <span class="o">|</span><span class="n">e</span><span class="o">|</span>
+        <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+      <span class="k">end</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">set_process</span><span class="p">(</span><span class="nb">name</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">do_something</span>
+    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">notify_somebody</span><span class="p">(</span><span class="n">user</span><span class="p">)</span>
+    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+<p>In this case <code>do_something</code> is called before actually entering the state <code>sleeping</code>,
+while <code>notify_somebody</code> is called after the transition <code>run</code> (from <code>sleeping</code> to <code>running</code>)
+is finished.</p>
+
+<p>Here you can see a list of all possible callbacks, together with their order of calling:</p>
+
+<div class="highlight"><pre>  <span class="ss">event</span><span class="p">:</span><span class="n">before</span>
+    <span class="n">previous_state</span><span class="ss">:before_exit</span>
+      <span class="n">new_state</span><span class="ss">:before_enter</span>
+        <span class="o">.</span><span class="n">.</span><span class="o">.</span><span class="n">update</span> <span class="n">state</span><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+      <span class="n">previous_state</span><span class="ss">:after_exit</span>
+    <span class="n">new_state</span><span class="ss">:after_enter</span>
+  <span class="ss">event</span><span class="p">:</span><span class="n">after</span>
+</pre></div>
+
+<p>Also, you can pass parameters to events:</p>
+
+<div class="highlight"><pre>  <span class="n">job</span> <span class="o">=</span> <span class="no">Job</span><span class="o">.</span><span class="n">new</span>
+  <span class="n">job</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="ss">:running</span><span class="p">,</span> <span class="ss">:defragmentation</span><span class="p">)</span>
+</pre></div>
+
+<p>In this case the <code>set_process</code> would be called with <code>:defagmentation</code> argument.</p>
+
+<p>In case of an error during the event processing the error is rescued and passed to <code>:error</code>
+callback, which can handle it or re-raise it for further propagation.</p>
+
+<h3>
+<a name="guards" class="anchor" href="#guards"><span class="octicon octicon-link"></span></a>Guards</h3>
+
+<p>Let's assume you want to allow particular transitions only if a defined condition is
+given. For this you can set up a guard per transition, which will run before actually
+running the transition. If the guard returns <code>false</code> the transition will be
+denied (raising <code>AASM::InvalidTransition</code> or returning <code>false</code> itself):</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+    <span class="n">state</span> <span class="ss">:cleaning</span>
+
+    <span class="n">event</span> <span class="ss">:run</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:running</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:clean</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:cleaning</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:sleep</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:guard</span> <span class="o">=&gt;</span> <span class="ss">:cleaning_needed?</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">cleaning_needed?</span>
+    <span class="kp">false</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="no">Job</span><span class="o">.</span><span class="n">new</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>
+<span class="n">job</span><span class="o">.</span><span class="n">may_sleep?</span>  <span class="c1"># =&gt; false</span>
+<span class="n">job</span><span class="o">.</span><span class="n">sleep</span>       <span class="c1"># =&gt; raises AASM::InvalidTransition</span>
+</pre></div>
+
+<h3>
+<a name="activerecord" class="anchor" href="#activerecord"><span class="octicon octicon-link"></span></a>ActiveRecord</h3>
+
+<p>AASM comes with support for ActiveRecord and allows automatical persisting of the object's
+state in the database.</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Base</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="k">do</span> <span class="c1"># default column: aasm_state</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+
+    <span class="n">event</span> <span class="ss">:run</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:running</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:sleep</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+<p>You can tell AASM to auto-save the object or leave it unsaved</p>
+
+<div class="highlight"><pre><span class="n">job</span> <span class="o">=</span> <span class="no">Job</span><span class="o">.</span><span class="n">new</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>   <span class="c1"># not saved</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run!</span>  <span class="c1"># saved</span>
+</pre></div>
+
+<p>Saving includes running all validations on the <code>Job</code> class. If you want make sure
+the state gets saved without running validations (and thereby maybe persisting an
+invalid object state), simply tell AASM to skip the validations:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Base</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="ss">:skip_validation_on_save</span> <span class="o">=&gt;</span> <span class="kp">true</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+
+    <span class="n">event</span> <span class="ss">:run</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:running</span>
+    <span class="k">end</span>
+
+    <span class="n">event</span> <span class="ss">:sleep</span> <span class="k">do</span>
+      <span class="n">transitions</span> <span class="ss">:from</span> <span class="o">=&gt;</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:to</span> <span class="o">=&gt;</span> <span class="ss">:sleeping</span>
+    <span class="k">end</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+<h3>
+<a name="automatic-scopes" class="anchor" href="#automatic-scopes"><span class="octicon octicon-link"></span></a>Automatic Scopes</h3>
+
+<p>AASM will automatically create scope methods for each state in the model.</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Base</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+    <span class="n">state</span> <span class="ss">:cleaning</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nf">sleeping</span>
+    <span class="s2">"This method name is in already use"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">JobsController</span> <span class="o">&lt;</span> <span class="no">ApplicationController</span>
+  <span class="k">def</span> <span class="nf">index</span>
+    <span class="vi">@running_jobs</span> <span class="o">=</span> <span class="n">jobs</span><span class="o">.</span><span class="n">running</span>
+    <span class="vi">@recent_cleaning_jobs</span> <span class="o">=</span> <span class="n">jobs</span><span class="o">.</span><span class="n">cleaning</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="s1">'created_at &gt;=  ?'</span><span class="p">,</span> <span class="mi">3</span><span class="o">.</span><span class="n">days</span><span class="o">.</span><span class="n">ago</span><span class="p">)</span>
+
+    <span class="c1"># @sleeping_jobs = jobs.sleeping   #=&gt; "This method name is in already use"</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<p>If you don't need scopes (or simply don't want them), disable their creation when
+defining the <code>AASM</code> states, like this:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Base</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="ss">:create_scopes</span> <span class="o">=&gt;</span> <span class="kp">false</span> <span class="k">do</span>
+    <span class="n">state</span> <span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:initial</span> <span class="o">=&gt;</span> <span class="kp">true</span>
+    <span class="n">state</span> <span class="ss">:running</span>
+    <span class="n">state</span> <span class="ss">:cleaning</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<h3>
+<a name="transaction-support" class="anchor" href="#transaction-support"><span class="octicon octicon-link"></span></a>Transaction support</h3>
+
+<p>Since version <em>3.0.13</em> AASM supports ActiveRecord transactions. So whenever a transition
+callback or the state update fails, all changes to any database record are rolled back.</p>
+
+<h3>
+<a name="column-name--migration" class="anchor" href="#column-name--migration"><span class="octicon octicon-link"></span></a>Column name &amp; migration</h3>
+
+<p>As a default AASM uses the column <code>aasm_state</code> to store the states. You can override
+this by defining your favorite column name, using <code>:column</code> like this:</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">Job</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Base</span>
+  <span class="kp">include</span> <span class="no">AASM</span>
+
+  <span class="n">aasm</span> <span class="ss">:column</span> <span class="o">=&gt;</span> <span class="s1">'my_state'</span> <span class="k">do</span>
+    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+  <span class="k">end</span>
+
+<span class="k">end</span>
+</pre></div>
+
+<p>Whatever column name is used, make sure to add a migration to provide this column
+(of type <code>string</code>):</p>
+
+<div class="highlight"><pre><span class="k">class</span> <span class="nc">AddJobState</span> <span class="o">&lt;</span> <span class="ss">ActiveRecord</span><span class="p">:</span><span class="ss">:Migration</span>
+  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">up</span>
+    <span class="n">add_column</span> <span class="ss">:jobs</span><span class="p">,</span> <span class="ss">:aasm_state</span><span class="p">,</span> <span class="ss">:string</span>
+  <span class="k">end</span>
+
+  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">down</span>
+    <span class="n">remove_column</span> <span class="ss">:jobs</span><span class="p">,</span> <span class="ss">:aasm_state</span>
+  <span class="k">end</span>
+<span class="k">end</span>
+</pre></div>
+
+<h3>
+<a name="inspection" class="anchor" href="#inspection"><span class="octicon octicon-link"></span></a><a>Inspection</a>
+</h3>
+
+<p>AASM supports a couple of methods to find out which states or events are provided or permissible.</p>
+
+<p>Given the <code>Job</code> class from above:</p>
+
+<div class="highlight"><pre><span class="n">job</span> <span class="o">=</span> <span class="no">Job</span><span class="o">.</span><span class="n">new</span>
+
+<span class="n">job</span><span class="o">.</span><span class="n">aasm</span><span class="o">.</span><span class="n">states</span>
+<span class="o">=&gt;</span> <span class="o">[</span><span class="ss">:sleeping</span><span class="p">,</span> <span class="ss">:running</span><span class="p">,</span> <span class="ss">:cleaning</span><span class="o">]</span>
+
+<span class="n">job</span><span class="o">.</span><span class="n">aasm</span><span class="o">.</span><span class="n">states</span><span class="p">(</span><span class="ss">:permissible</span> <span class="o">=&gt;</span> <span class="kp">true</span><span class="p">)</span>
+<span class="o">=&gt;</span> <span class="o">[</span><span class="ss">:running</span><span class="o">]</span>
+<span class="n">job</span><span class="o">.</span><span class="n">run</span>
+<span class="n">job</span><span class="o">.</span><span class="n">aasm</span><span class="o">.</span><span class="n">states</span><span class="p">(</span><span class="ss">:permissible</span> <span class="o">=&gt;</span> <span class="kp">true</span><span class="p">)</span>
+<span class="o">=&gt;</span> <span class="o">[</span><span class="ss">:cleaning</span><span class="p">,</span> <span class="ss">:sleeping</span><span class="o">]</span>
+
+<span class="n">job</span><span class="o">.</span><span class="n">aasm</span><span class="o">.</span><span class="n">events</span>
+<span class="o">=&gt;</span> <span class="o">[</span><span class="ss">:run</span><span class="p">,</span> <span class="ss">:clean</span><span class="p">,</span> <span class="ss">:sleep</span><span class="o">]</span>
+</pre></div>
+
+<h2>
+<a name="installation" class="anchor" href="#installation"><span class="octicon octicon-link"></span></a><a>Installation</a>
+</h2>
+
+<h3>
+<a name="manually-from-rubygemsorg" class="anchor" href="#manually-from-rubygemsorg"><span class="octicon octicon-link"></span></a>Manually from RubyGems.org</h3>
+
+<div class="highlight"><pre>% gem install aasm
+</pre></div>
+
+<h3>
+<a name="or-if-you-are-using-bundler" class="anchor" href="#or-if-you-are-using-bundler"><span class="octicon octicon-link"></span></a>Or if you are using Bundler</h3>
+
+<div class="highlight"><pre><span class="c1"># Gemfile</span>
+<span class="n">gem</span> <span class="s1">'aasm'</span>
+</pre></div>
+
+<h3>
+<a name="building-your-own-gems" class="anchor" href="#building-your-own-gems"><span class="octicon octicon-link"></span></a>Building your own gems</h3>
+
+<div class="highlight"><pre>% rake build
+% sudo gem install pkg/aasm-x.y.z.gem
+</pre></div>
+
+<h2>
+<a name="latest-changes" class="anchor" href="#latest-changes"><span class="octicon octicon-link"></span></a>Latest changes</h2>
+
+<p>Look at the <a href="https://github.com/aasm/aasm/blob/master/CHANGELOG.md">CHANGELOG</a> for details.</p>
+
+<h2>
+<a name="questions" class="anchor" href="#questions"><span class="octicon octicon-link"></span></a>Questions?</h2>
+
+<p>Feel free to</p>
+
+<ul>
+<li><a href="https://github.com/aasm/aasm/issues">create an issue on GitHub</a></li>
+<li>
+<a href="http://stackoverflow.com">ask a question on StackOverflow</a> (tag with <code>aasm</code>)</li>
+<li>send us a tweet <a href="http://twitter.com/aasm">@aasm</a>
+</li>
+</ul><h2>
+<a name="authors" class="anchor" href="#authors"><span class="octicon octicon-link"></span></a>Authors</h2>
+
+<ul>
+<li><a href="https://github.com/rubyist">Scott Barron</a></li>
+<li><a href="https://github.com/ttilley">Travis Tilley</a></li>
+<li><a href="http://github.com/alto">Thorsten Böttger</a></li>
+</ul><h2>
+<a name="warranty" class="anchor" href="#warranty"><span class="octicon octicon-link"></span></a>Warranty</h2>
+
+<p>This software is provided "as is" and without any express or
+implied warranties, including, without limitation, the implied
+warranties of merchantibility and fitness for a particular
+purpose.</p>
+
+<h2>
+<a name="license" class="anchor" href="#license"><span class="octicon octicon-link"></span></a>License</h2>
+
+<p>Copyright (c) 2006-2012 Scott Barron</p>
+
+<p>Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.</p>
+
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
